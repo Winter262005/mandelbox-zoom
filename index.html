@@ -3,42 +3,48 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Fractal Voyager – an infinite real-time WebGL raymarching engine exploring the Mandelbox fractal." />
-    <title>Fractal Voyager – Infinite Raymarching Engine</title>
+    <meta
+      name="description"
+      content="Fractal Voyager – generate unique fractal spaces from names."
+    />
+    <title>Fractal Voyager – Seeded Raymarching</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
-      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
       :root {
         --accent: #4af;
         --accent2: #a4f;
-        --panel-bg: rgba(5, 8, 18, 0.72);
-        --panel-border: rgba(80, 160, 255, 0.18);
+        --panel-bg: rgba(5, 8, 18, 0.85);
+        --panel-border: rgba(80, 160, 255, 0.25);
         --glow: 0 0 18px rgba(68, 170, 255, 0.35);
       }
 
       body {
         overflow: hidden;
-        background: #050505;
-        font-family: 'Inter', sans-serif;
+        background: #000;
+        font-family: "Inter", sans-serif;
         color: #fff;
         user-select: none;
       }
 
-      /* ── Canvas & offscreen render ── */
-      canvas { display: block; }
-
-      #glCanvas {
-        position: fixed;
-        inset: 0;
+      canvas {
+        display: block;
         width: 100vw;
         height: 100vh;
-        cursor: crosshair;
-        image-rendering: pixelated; /* keep crisp when render scale < 1 */
+        image-rendering: pixelated;
       }
 
-      /* ── HUD shell ── */
       #hud {
         position: fixed;
         inset: 0;
@@ -46,267 +52,194 @@
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        padding: 1.5rem 1.75rem;
+        padding: 1.5rem;
+        z-index: 5;
       }
 
-      /* ── Top bar ── */
-      #hud-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 1rem;
+      #stats {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.75rem;
+        background: var(--panel-bg);
+        border: 1px solid var(--panel-border);
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        backdrop-filter: blur(12px);
+        color: rgba(255, 255, 255, 0.8);
+        box-shadow: var(--glow);
       }
 
       .brand h1 {
-        font-size: 1.1rem;
+        font-size: 1.2rem;
         font-weight: 700;
-        letter-spacing: 0.12em;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
         background: linear-gradient(90deg, #4af, #a4f);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        background-clip: text;
       }
 
-      .brand p {
-        font-size: 0.65rem;
-        opacity: 0.45;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        margin-top: 2px;
-      }
-
-      #stats {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.68rem;
-        text-align: right;
-        line-height: 1.7;
-        background: var(--panel-bg);
-        border: 1px solid var(--panel-border);
-        border-radius: 8px;
-        padding: 0.55rem 0.85rem;
-        backdrop-filter: blur(12px);
-        color: rgba(255,255,255,0.65);
-        box-shadow: var(--glow);
-        transition: box-shadow 0.3s;
-      }
-
-      #stats .val { color: var(--accent); }
-      #stats .fps-bad  { color: #f64; }
-      #stats .fps-ok   { color: #fa4; }
-      #stats .fps-good { color: #4f8; }
-
-      /* ── Bottom hint ── */
-      #hud-bottom {
-        display: flex;
-        justify-content: center;
-      }
-
-      #hint {
-        font-size: 0.6rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        opacity: 0.3;
-      }
-
-      /* ── Crosshair ── */
-      #crosshair {
-        position: fixed;
-        top: 50%; left: 50%;
-        transform: translate(-50%, -50%);
-        width: 14px; height: 14px;
-        pointer-events: none;
-        opacity: 0.55;
-      }
-
-      #crosshair::before, #crosshair::after {
-        content: '';
-        position: absolute;
-        background: #fff;
-      }
-
-      #crosshair::before {
-        width: 1px; height: 100%;
-        left: 50%; top: 0;
-        transform: translateX(-50%);
-      }
-
-      #crosshair::after {
-        width: 100%; height: 1px;
-        top: 50%; left: 0;
-        transform: translateY(-50%);
-      }
-
-      /* ── Launch overlay ── */
       #launch {
         position: fixed;
         inset: 0;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: radial-gradient(ellipse at center, rgba(10,15,40,0.92) 0%, rgba(3,5,12,0.97) 100%);
-        backdrop-filter: blur(4px);
-        pointer-events: auto;
-        z-index: 10;
-        cursor: pointer;
+        background: radial-gradient(
+          circle at center,
+          rgba(10, 20, 50, 0.9) 0%,
+          #000 100%
+        );
+        backdrop-filter: blur(10px);
+        z-index: 100;
+        transition:
+          opacity 0.5s ease-out,
+          visibility 0.5s;
       }
 
-      .launch-card {
+      #launch.hidden {
+        opacity: 0;
+        visibility: hidden;
+      }
+
+      .card {
         background: var(--panel-bg);
         border: 1px solid var(--panel-border);
-        border-radius: 16px;
-        padding: 2.5rem 3rem;
-        max-width: 480px;
+        border-radius: 20px;
+        padding: 3rem;
+        max-width: 500px;
         width: 90%;
-        box-shadow: 0 0 60px rgba(68,170,255,0.12), 0 8px 40px rgba(0,0,0,0.6);
         text-align: center;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
       }
 
-      .launch-card h2 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        letter-spacing: 0.05em;
-        background: linear-gradient(90deg, #4af, #a4f);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 0.5rem;
-      }
-
-      .launch-card p {
-        font-size: 0.82rem;
-        opacity: 0.6;
-        margin-bottom: 1.75rem;
-        line-height: 1.6;
-      }
-
-      .controls-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.4rem 1rem;
-        font-size: 0.75rem;
-        margin-bottom: 1.75rem;
+      .input-group {
+        margin: 2rem 0;
         text-align: left;
       }
+      .input-group label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        opacity: 0.6;
+        margin-bottom: 0.5rem;
+        display: block;
+      }
 
-      .ctrl-label { opacity: 0.45; text-align: right; padding-top: 1px; }
-
-      .kbd {
-        display: inline-block;
-        background: rgba(255,255,255,0.08);
-        border: 1px solid rgba(255,255,255,0.18);
-        border-bottom-width: 2px;
-        border-radius: 4px;
-        padding: 1px 6px;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.72rem;
+      #seedInput {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--panel-border);
+        padding: 1rem;
+        color: #fff;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 1.1rem;
+        border-radius: 8px;
+        outline: none;
       }
 
       .btn-launch {
-        display: inline-block;
-        padding: 0.65rem 2rem;
-        background: linear-gradient(135deg, #2277cc, #7733cc);
+        padding: 1rem 3rem;
+        background: linear-gradient(135deg, #25f, #a4f);
         border: none;
-        border-radius: 100px;
+        border-radius: 50px;
         color: #fff;
-        font-family: 'Inter', sans-serif;
-        font-size: 0.75rem;
         font-weight: 700;
-        letter-spacing: 0.14em;
         text-transform: uppercase;
+        letter-spacing: 0.1em;
         cursor: pointer;
-        transition: filter 0.2s, transform 0.15s;
-        box-shadow: 0 0 24px rgba(68,170,255,0.25);
+        transition: transform 0.2s;
+      }
+      .btn-launch:hover {
+        transform: scale(1.05);
       }
 
-      .btn-launch:hover { filter: brightness(1.2); transform: scale(1.04); }
+      .controls-guide {
+        font-size: 0.75rem;
+        margin-top: 2rem;
+        line-height: 1.6;
+        opacity: 0.5;
+      }
     </style>
   </head>
   <body>
-
-    <!-- Render target canvas -->
     <canvas id="glCanvas"></canvas>
 
-    <!-- Crosshair -->
-    <div id="crosshair"></div>
-
-    <!-- HUD -->
     <div id="hud">
-      <div id="hud-top">
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+        "
+      >
         <div class="brand">
           <h1>Fractal Voyager</h1>
-          <p>Infinite Raymarching Engine · WebGL</p>
+          <p id="s-seed-name" style="font-size: 0.7rem; opacity: 0.5">
+            Awaiting Signature
+          </p>
         </div>
         <div id="stats">
-          POS &nbsp;<span class="val" id="s-pos">0.00, 0.00, 0.00</span><br>
-          FPS &nbsp;<span id="s-fps">60</span><br>
-          RES &nbsp;<span class="val" id="s-res">100%</span>
+          FPS: <span id="s-fps" style="color: #4f8">--</span><br />
+          DNA: <span id="s-dna" style="color: #4af">Standard</span>
         </div>
-      </div>
-      <div id="hud-bottom">
-        <p id="hint">Procedural Fractal Simulation &nbsp;·&nbsp; GPU Accelerated</p>
       </div>
     </div>
 
-    <!-- Launch screen -->
-    <div id="launch" onclick="requestLock()">
-      <div class="launch-card">
-        <h2>Initialize Neural Link</h2>
-        <p>Explore the infinite architectural voids of the Mandelbox fractal. Click to engage pointer lock.</p>
-        <div class="controls-grid">
-          <span class="ctrl-label">Move</span>
-          <span><span class="kbd">W</span> <span class="kbd">A</span> <span class="kbd">S</span> <span class="kbd">D</span></span>
-          <span class="ctrl-label">Ascend / Descend</span>
-          <span><span class="kbd">Space</span> / <span class="kbd">Ctrl</span></span>
-          <span class="ctrl-label">Boost (×3)</span>
-          <span><span class="kbd">Shift</span></span>
-          <span class="ctrl-label">Zoom in / out</span>
-          <span><span class="kbd">Z</span> / <span class="kbd">X</span></span>
-          <span class="ctrl-label">Look</span>
-          <span>Mouse</span>
+    <div id="launch">
+      <div class="card">
+        <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem">
+          Initialize Neural Link
+        </h2>
+        <p style="opacity: 0.6; font-size: 0.9rem">
+          Your unique string generates a dedicated dimension.
+        </p>
+        <div class="input-group">
+          <label>Neural Signature</label>
+          <input
+            type="text"
+            id="seedInput"
+            placeholder="Ex: Voyager One"
+            maxlength="24"
+          />
         </div>
-        <button class="btn-launch">Begin Sequence</button>
+        <button class="btn-launch" id="startBtn">Engage Drive</button>
+        <div class="controls-guide">
+          [W,A,S,D] Move &nbsp;•&nbsp; [Mouse] Look &nbsp;•&nbsp; [Shift]
+          Boost<br />
+          Click screen to recapture mouse.
+        </div>
       </div>
     </div>
 
-    <!-- ════════════════════════════════════════
-         VERTEX SHADER
-    ════════════════════════════════════════ -->
     <script id="vs" type="x-shader/x-vertex">
       attribute vec2 position;
-      void main() {
-          gl_Position = vec4(position, 0.0, 1.0);
-      }
+      void main() { gl_Position = vec4(position, 0.0, 1.0); }
     </script>
 
-    <!-- ════════════════════════════════════════
-         FRAGMENT SHADER  (all the magic)
-    ════════════════════════════════════════ -->
     <script id="fs" type="x-shader/x-fragment">
       precision highp float;
 
       uniform vec2  u_res;
       uniform float u_time;
       uniform vec3  u_pos;
-      uniform vec2  u_look;   // yaw, pitch
-      uniform float u_fov;    // tangent of half-FOV (default ≈ 1.2)
+      uniform vec2  u_look;
 
-      /* ─── Ray-march constants ─── */
-      const int   MAX_STEPS = 90;
-      const float MIN_DIST  = 0.0008;
-      const float MAX_DIST  = 40.0;
+      // Genetic Seed Uniforms
+      uniform float u_mandelScale;
+      uniform float u_colorShift;
+      uniform float u_rotAmount;
+      uniform float u_mixFactor;
 
-      /* ─── Mandelbox distance estimator ─── */
+      const int   MAX_STEPS = 80;
+      const float MIN_DIST  = 0.001;
+      const float MAX_DIST  = 30.0;
+
       void sphereFold(inout vec3 z, inout float dz) {
           float r2 = dot(z, z);
-          if (r2 < 0.25) {           // inner radius² = 0.5² = 0.25
-              float k = 4.0;
-              z  *= k;
-              dz *= k;
+          if (r2 < 0.5) {
+              z *= 2.0; dz *= 2.0;
           } else if (r2 < 1.0) {
               float k = 1.0 / r2;
-              z  *= k;
-              dz *= k;
+              z *= k; dz *= k;
           }
       }
 
@@ -314,27 +247,34 @@
           z = clamp(z, -1.0, 1.0) * 2.0 - z;
       }
 
-      float map(vec3 p) {
-          // Infinite tiling
-          p = mod(p + 4.0, 8.0) - 4.0;
+      void mengerFold(inout vec3 z) {
+          float a = min(z.x - z.y, 0.0); z.x -= a; z.y += a;
+          a = min(z.x - z.z, 0.0); z.x -= a; z.z += a;
+          a = min(z.y - z.z, 0.0); z.y -= a; z.z += a;
+      }
 
-          vec3  z  = p;
+      float map(vec3 p) {
+          p = mod(p + 4.0, 8.0) - 4.0; // Infinite tiling
+          vec3 z = p;
           float dr = 1.0;
-          const float scale = 2.5;
+
+          float s = sin(u_rotAmount), c = cos(u_rotAmount);
+          mat3 rot = mat3(c, -s, 0, s, c, 0, 0, 0, 1);
 
           for (int i = 0; i < 8; i++) {
               boxFold(z);
+              if(u_mixFactor > 0.5) mengerFold(z);
               sphereFold(z, dr);
-              z  = scale * z + p;
-              dr = dr * abs(scale) + 1.0;
+              z = rot * z;
+              z = u_mandelScale * z + p;
+              dr = dr * abs(u_mandelScale) + 1.0;
           }
           return length(z) / abs(dr);
       }
 
-      /* ─── Tetrahedral normals (4 map calls instead of 6) ─── */
       vec3 getNormal(vec3 p) {
-          const float e = 0.0015;
-          vec2 k = vec2(1.0, -1.0);
+          const float e = 0.002;
+          vec2 k = vec2(1, -1);
           return normalize(
               k.xyy * map(p + k.xyy * e) +
               k.yyx * map(p + k.yyx * e) +
@@ -343,287 +283,220 @@
           );
       }
 
-      /* ─── Ambient occlusion ─── */
-      float getAO(vec3 p, vec3 n) {
-          float occ = 0.0, sca = 1.0;
-          for (int i = 0; i < 5; i++) {
-              float hr = 0.01 + 0.12 * float(i) / 4.0;
-              float d  = map(p + n * hr);
-              occ += -(d - hr) * sca;
-              sca *= 0.95;
-          }
-          return clamp(1.0 - 3.0 * occ, 0.0, 1.0);
-      }
-
-      /* ─── Soft shadows (16-step shadow ray) ─── */
-      float getSoftShadow(vec3 ro, vec3 rd, float mint, float maxt, float k) {
-          float shadow = 1.0;
-          float t = mint;
-          for (int i = 0; i < 16; i++) {
-              if (t >= maxt) break;
-              float h = map(ro + rd * t);
-              shadow = min(shadow, k * h / t);
-              if (shadow < 0.001) break;
-              t += clamp(h, 0.02, 0.5);
-          }
-          return clamp(shadow, 0.0, 1.0);
-      }
-
       void main() {
           vec2 uv = (gl_FragCoord.xy - 0.5 * u_res) / u_res.y;
 
-          /* ─── Camera ─── */
+          // Camera
           float cy = cos(u_look.x), sy = sin(u_look.x);
           float cp = cos(u_look.y), sp = sin(u_look.y);
-          mat3 rotY = mat3( cy, 0.0, sy,  0.0, 1.0, 0.0, -sy, 0.0,  cy);
-          mat3 rotX = mat3(1.0, 0.0, 0.0,  0.0,  cp,  -sp,  0.0,  sp,  cp);
+          mat3 rotY = mat3(cy, 0, sy, 0, 1, 0, -sy, 0, cy);
+          mat3 rotX = mat3(1, 0, 0, 0, cp, -sp, 0, sp, cp);
 
           vec3 ro = u_pos;
-          vec3 rd = rotY * rotX * normalize(vec3(uv * u_fov, 1.0));
+          vec3 rd = rotY * rotX * normalize(vec3(uv, 1.2));
 
-          /* ─── Raymarch with step-damping ─── */
           float t = 0.0;
-          float d = 0.0;
-          int   steps = 0;
-
+          int steps = 0;
           for (int i = 0; i < MAX_STEPS; i++) {
-              d = map(ro + rd * t);
+              float d = map(ro + rd * t);
               if (d < MIN_DIST || t > MAX_DIST) break;
-              t += d * 0.85;   // step damping — reduces overstepping artifacts
+              t += d * 0.8;
               steps = i;
           }
 
-          /* ─── Shading ─── */
-          vec3 col = vec3(0.0);
-
+          vec3 col = vec3(0.02, 0.04, 0.08); // Deep space background
           if (t < MAX_DIST) {
-              vec3  p      = ro + rd * t;
-              vec3  n      = getNormal(p);
-              vec3  sunDir = normalize(vec3(0.6, 0.9, -0.4));
-              vec3  viewDir = -rd;
+              vec3 p = ro + rd * t;
+              vec3 n = getNormal(p);
+              float diff = max(dot(n, normalize(vec3(0.5, 0.8, -0.2))), 0.0);
 
-              /* Lighting components */
-              float diff    = max(dot(n, sunDir), 0.0);
-              float ao      = getAO(p, n);
-              float fog     = exp(-0.12 * t);
-
-              /* Soft shadow */
-              float shadow  = getSoftShadow(p + n * 0.003, sunDir, 0.02, 8.0, 8.0);
-
-              /* Specular (Blinn-Phong) */
-              vec3  halfDir = normalize(sunDir + viewDir);
-              float spec    = pow(max(dot(n, halfDir), 0.0), 32.0);
-
-              /* Procedural color — shifts slowly with time and position */
-              vec3 baseCol = 0.5 + 0.5 * cos(u_time * 0.08 + p.zxy * 0.15 + vec3(0.0, 2.1, 4.2));
-              float complexity = 1.0 - float(steps) / float(MAX_STEPS);
-              baseCol *= 0.6 + 0.4 * complexity;
-
-              /* Combine */
-              col  = baseCol * (diff * shadow * 0.85 + 0.18) * ao;
-              col += spec * shadow * 0.45 * vec3(0.9, 0.95, 1.0);   // cool specular tint
-              col  = mix(vec3(0.015, 0.02, 0.04), col, fog);
+              // Seeded Hue
+              vec3 base = 0.5 + 0.5 * cos(u_colorShift + vec3(0, 2, 4) + t*0.1);
+              col = base * (diff + 0.15);
+              col *= exp(-0.1 * t); // Fog
           }
 
-          /* Glow / edge bloom */
-          col += vec3(0.08, 0.18, 0.42) * (float(steps) / float(MAX_STEPS)) * 0.55;
+          // Add steps glow
+          col += vec3(0.2, 0.5, 1.0) * (float(steps) / float(MAX_STEPS)) * 0.4;
 
-          /* Vignette */
-          vec2 q  = gl_FragCoord.xy / u_res;
-          col    *= 0.5 + 0.5 * pow(16.0 * q.x * q.y * (1.0 - q.x) * (1.0 - q.y), 0.25);
-
-          /* Gamma correction (sRGB) */
-          gl_FragColor = vec4(pow(max(col, vec3(0.0)), vec3(0.4545)), 1.0);
+          gl_FragColor = vec4(pow(col, vec3(0.4545)), 1.0);
       }
     </script>
 
-    <!-- ════════════════════════════════════════
-         ENGINE  JS
-    ════════════════════════════════════════ -->
     <script>
       "use strict";
 
-      /* ── WebGL init ── */
-      const canvas   = document.getElementById("glCanvas");
-      const gl       = canvas.getContext("webgl", { antialias: false, alpha: false });
+      const canvas = document.getElementById("glCanvas");
+      const gl = canvas.getContext("webgl", { antialias: false, alpha: false });
+      const seedInput = document.getElementById("seedInput");
+      const startBtn = document.getElementById("startBtn");
+      const launchOverlay = document.getElementById("launch");
 
-      const sFps  = document.getElementById("s-fps");
-      const sPos  = document.getElementById("s-pos");
-      const sRes  = document.getElementById("s-res");
-      const launch = document.getElementById("launch");
+      // Engine State
+      const state = {
+        lastTime: 0,
+        isLocked: false,
+        pos: { x: 0, y: 0, z: -5 },
+        vel: { x: 0, y: 0, z: 0 },
+        look: { yaw: 0, pitch: 0 },
+        keys: {},
+        mScale: 2.5,
+        cShift: 0,
+        rotAmt: 0,
+        mixFac: 0,
+      };
 
-      if (!gl) { alert("WebGL not supported."); }
+      function hashString(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return hash;
+      }
 
-      /* ── Shader compilation ── */
-      function compileShader(type, src) {
+      // WebGL Setup
+      function createShader(gl, type, source) {
         const s = gl.createShader(type);
-        gl.shaderSource(s, src);
+        gl.shaderSource(s, source);
         gl.compileShader(s);
         if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
           console.error(gl.getShaderInfoLog(s));
-          return null;
         }
         return s;
       }
 
       const prog = gl.createProgram();
-      gl.attachShader(prog, compileShader(gl.VERTEX_SHADER,   document.getElementById("vs").text));
-      gl.attachShader(prog, compileShader(gl.FRAGMENT_SHADER, document.getElementById("fs").text));
+      gl.attachShader(
+        prog,
+        createShader(gl, gl.VERTEX_SHADER, document.getElementById("vs").text),
+      );
+      gl.attachShader(
+        prog,
+        createShader(
+          gl,
+          gl.FRAGMENT_SHADER,
+          document.getElementById("fs").text,
+        ),
+      );
       gl.linkProgram(prog);
-      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-        console.error("Program link error:", gl.getProgramInfoLog(prog));
-      }
       gl.useProgram(prog);
 
-      /* ── Full-screen quad ── */
       const buf = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-      gl.bufferData(gl.ARRAY_BUFFER,
-        new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]),
-        gl.STATIC_DRAW);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
+        gl.STATIC_DRAW,
+      );
       const posAttr = gl.getAttribLocation(prog, "position");
       gl.enableVertexAttribArray(posAttr);
       gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
 
-      /* ── Uniform locations ── */
-      const uRes  = gl.getUniformLocation(prog, "u_res");
-      const uTime = gl.getUniformLocation(prog, "u_time");
-      const uPos  = gl.getUniformLocation(prog, "u_pos");
-      const uLook = gl.getUniformLocation(prog, "u_look");
-      const uFov  = gl.getUniformLocation(prog, "u_fov");
-
-      /* ── Engine state ── */
-      const state = {
-        pos:      { x: 0.0, y: 0.5, z: -2.0 },
-        vel:      { x: 0.0, y: 0.0,  z:  0.0 },
-        look:     { yaw: 0.0, pitch: 0.0 },
-        keys:     {},
-        fov:      1.2,          // tangent of ~50° half-FOV
-        lastTime: 0,
-        isLocked: false,
+      const uniforms = {
+        res: gl.getUniformLocation(prog, "u_res"),
+        time: gl.getUniformLocation(prog, "u_time"),
+        pos: gl.getUniformLocation(prog, "u_pos"),
+        look: gl.getUniformLocation(prog, "u_look"),
+        mScale: gl.getUniformLocation(prog, "u_mandelScale"),
+        cShift: gl.getUniformLocation(prog, "u_colorShift"),
+        rotAmt: gl.getUniformLocation(prog, "u_rotAmount"),
+        mixFac: gl.getUniformLocation(prog, "u_mixFactor"),
       };
 
-      /* ── Adaptive resolution ── */
-      let renderScale   = 0.85;      // starting scale
-      const RS_MIN      = 0.45;
-      const RS_MAX      = 1.0;
-      const FPS_TARGET_LO = 38;
-      const FPS_TARGET_HI = 58;
-
-      // Smooth FPS
-      let smoothFps = 60;
-
-      function adjustResolution(rawFps) {
-        smoothFps = smoothFps * 0.88 + rawFps * 0.12;
-        if (smoothFps < FPS_TARGET_LO) {
-          renderScale = Math.max(RS_MIN, renderScale - 0.015);
-        } else if (smoothFps > FPS_TARGET_HI) {
-          renderScale = Math.min(RS_MAX, renderScale + 0.008);
-        }
-      }
-
-      /* ── Input ── */
-      window.addEventListener("keydown", e => { state.keys[e.code] = true;  e.preventDefault(); });
-      window.addEventListener("keyup",   e => { state.keys[e.code] = false; });
-
-      function requestLock() { canvas.requestPointerLock(); }
+      window.addEventListener("keydown", (e) => (state.keys[e.code] = true));
+      window.addEventListener("keyup", (e) => (state.keys[e.code] = false));
+      window.addEventListener("mousemove", (e) => {
+        if (!state.isLocked) return;
+        state.look.yaw += e.movementX * 0.002;
+        state.look.pitch -= e.movementY * 0.002;
+        state.look.pitch = Math.max(
+          -Math.PI / 2,
+          Math.min(Math.PI / 2, state.look.pitch),
+        );
+      });
 
       document.addEventListener("pointerlockchange", () => {
         state.isLocked = document.pointerLockElement === canvas;
-        launch.style.display = state.isLocked ? "none" : "flex";
       });
 
-      window.addEventListener("mousemove", e => {
-        if (!state.isLocked) return;
-        const sens = 0.0018;
-        state.look.yaw   -= e.movementX * sens;
-        state.look.pitch -= e.movementY * sens;
-        state.look.pitch  = Math.max(-Math.PI / 2 + 0.01,
-                            Math.min( Math.PI / 2 - 0.01, state.look.pitch));
+      canvas.addEventListener("click", () => {
+        if (!state.isLocked) canvas.requestPointerLock();
       });
 
-      /* ── Physics update ── */
+      startBtn.addEventListener("click", () => {
+        const seedText = seedInput.value || "Voyager";
+        const h = hashString(seedText);
+
+        const n1 = (Math.abs(h) % 1000) / 1000;
+        const n2 = (Math.abs(h * 13) % 1000) / 1000;
+        const n3 = (Math.abs(h * 37) % 1000) / 1000;
+
+        state.mScale = 2.1 + n1 * 0.9;
+        state.cShift = n1 * 10.0;
+        state.rotAmt = n2 * 0.5;
+        state.mixFac = n3;
+
+        document.getElementById("s-seed-name").textContent =
+          `Sector: ${seedText}`;
+        document.getElementById("s-dna").textContent =
+          `${state.mScale.toFixed(2)} [${n3 > 0.5 ? "HYB" : "STD"}]`;
+
+        launchOverlay.classList.add("hidden");
+        canvas.requestPointerLock();
+      });
+
       function update(dt) {
-        const boost   = (state.keys["ShiftLeft"] || state.keys["ShiftRight"]) ? 3.2 : 1.0;
-        const accel   = 10.0 * boost;
-        const friction = 0.78;            // per-frame (applied once per frame)
+        const speed = state.keys["ShiftLeft"] ? 8.0 : 3.0;
+        const move = { x: 0, z: 0 };
+        if (state.keys["KeyW"]) move.z += 1;
+        if (state.keys["KeyS"]) move.z -= 1;
+        if (state.keys["KeyA"]) move.x -= 1;
+        if (state.keys["KeyD"]) move.x += 1;
 
-        const cy = Math.cos(state.look.yaw);
-        const sy = Math.sin(state.look.yaw);
-        const forward = { x: sy, z: cy };
-        const right   = { x: cy, z: -sy };
+        const cy = Math.cos(state.look.yaw),
+          sy = Math.sin(state.look.yaw);
+        const dirX = move.x * cy + move.z * sy;
+        const dirZ = move.z * cy - move.x * sy;
 
-        let mx = 0, my = 0, mz = 0;
-        if (state.keys["KeyW"])     { mx += forward.x; mz += forward.z; }
-        if (state.keys["KeyS"])     { mx -= forward.x; mz -= forward.z; }
-        if (state.keys["KeyA"])     { mx -= right.x;   mz -= right.z;   }
-        if (state.keys["KeyD"])     { mx += right.x;   mz += right.z;   }
-        if (state.keys["Space"])    { my += 1.0; }
-        if (state.keys["ControlLeft"] || state.keys["ControlRight"]) { my -= 1.0; }
-
-        // FOV zoom
-        if (state.keys["KeyZ"]) state.fov = Math.max(0.4, state.fov - 0.02);
-        if (state.keys["KeyX"]) state.fov = Math.min(2.0, state.fov + 0.02);
-
-        const mag = Math.sqrt(mx * mx + my * my + mz * mz);
-        if (mag > 0) {
-          state.vel.x += (mx / mag) * accel * dt;
-          state.vel.y += (my / mag) * accel * dt;
-          state.vel.z += (mz / mag) * accel * dt;
-        }
-
-        state.vel.x *= friction;
-        state.vel.y *= friction;
-        state.vel.z *= friction;
-
-        const STOP = 0.0005;
-        if (Math.abs(state.vel.x) < STOP) state.vel.x = 0;
-        if (Math.abs(state.vel.y) < STOP) state.vel.y = 0;
-        if (Math.abs(state.vel.z) < STOP) state.vel.z = 0;
+        state.vel.x += dirX * speed * dt;
+        state.vel.z += dirZ * speed * dt;
+        state.vel.x *= 0.9;
+        state.vel.z *= 0.9;
 
         state.pos.x += state.vel.x * dt;
-        state.pos.y += state.vel.y * dt;
         state.pos.z += state.vel.z * dt;
       }
 
-      /* ── Render loop ── */
       function render(time) {
         requestAnimationFrame(render);
-
-        const dt = Math.min((time - state.lastTime) / 1000, 0.05);
+        const dt = Math.min((time - state.lastTime) / 1000, 0.1);
         state.lastTime = time;
 
-        const fps = dt > 0 ? 1 / dt : 60;
-        adjustResolution(fps);
+        if (state.isLocked) update(dt);
 
-        // Resize canvas to adaptive scale
-        const targetW = Math.floor(window.innerWidth  * renderScale);
-        const targetH = Math.floor(window.innerHeight * renderScale);
-
-        if (canvas.width !== targetW || canvas.height !== targetH) {
-          canvas.width  = targetW;
-          canvas.height = targetH;
-          gl.viewport(0, 0, targetW, targetH);
+        if (
+          canvas.width !== window.innerWidth ||
+          canvas.height !== window.innerHeight
+        ) {
+          canvas.width = window.innerWidth;
+          canvas.height = window.innerHeight;
+          gl.viewport(0, 0, canvas.width, canvas.height);
         }
 
-        update(dt);
-
-        gl.uniform2f(uRes,  targetW, targetH);
-        gl.uniform1f(uTime, time * 0.001);
-        gl.uniform3f(uPos,  state.pos.x, state.pos.y, state.pos.z);
-        gl.uniform2f(uLook, state.look.yaw, state.look.pitch);
-        gl.uniform1f(uFov,  state.fov);
+        gl.uniform2f(uniforms.res, canvas.width, canvas.height);
+        gl.uniform1f(uniforms.time, time * 0.001);
+        gl.uniform3f(uniforms.pos, state.pos.x, state.pos.y, state.pos.z);
+        gl.uniform2f(uniforms.look, state.look.yaw, state.look.pitch);
+        gl.uniform1f(uniforms.mScale, state.mScale);
+        gl.uniform1f(uniforms.cShift, state.cShift);
+        gl.uniform1f(uniforms.rotAmt, state.rotAmt);
+        gl.uniform1f(uniforms.mixFac, state.mixFac);
 
         gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-        // HUD update (every frame — cheap string ops)
-        const fpsInt = Math.round(smoothFps);
-        const fpsClass = fpsInt < FPS_TARGET_LO ? "fps-bad" :
-                         fpsInt < FPS_TARGET_HI ? "fps-ok" : "fps-good";
-        sFps.className = fpsClass;
-        sFps.textContent = fpsInt;
-        sPos.textContent  = `${state.pos.x.toFixed(2)}, ${state.pos.y.toFixed(2)}, ${state.pos.z.toFixed(2)}`;
-        sRes.textContent  = `${Math.round(renderScale * 100)}%`;
+        if (time % 500 < 20) {
+          document.getElementById("s-fps").textContent = Math.round(1 / dt);
+        }
       }
 
       requestAnimationFrame(render);
