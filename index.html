@@ -1,149 +1,448 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Infinite Fractal Walker</title>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fractal Voyager - Infinite Exploration</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; color: white; font-family: sans-serif; }
-        canvas { display: block; width: 100vw; height: 100vh; }
-        #ui { position: absolute; top: 20px; left: 20px; pointer-events: none; text-shadow: 1px 1px 2px black; }
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&display=swap");
+
+      body {
+        margin: 0;
+        overflow: hidden;
+        background-color: #050505;
+        font-family: "Inter", sans-serif;
+        color: #fff;
+        user-select: none;
+      }
+
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        cursor: crosshair;
+      }
+
+      .overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        pointer-events: none;
+        padding: 2rem;
+        background: radial-gradient(
+          circle at center,
+          transparent 0%,
+          rgba(0, 0, 0, 0.4) 100%
+        );
+      }
+
+      .hud-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+
+      .hud-bottom {
+        display: flex;
+        justify-content: center;
+        opacity: 0.7;
+        transition: opacity 0.3s;
+      }
+
+      #instructions {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 2rem;
+        border-radius: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        pointer-events: auto;
+        cursor: pointer;
+      }
+
+      .kbd {
+        background: #333;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 0.9rem;
+        border-bottom: 2px solid #000;
+      }
+
+      .crosshair {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 10px;
+        height: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        pointer-events: none;
+      }
     </style>
-</head>
-<body>
-    <div id="ui">
-        <h1>Fractal World</h1>
-        <p>Use <b>WASD</b> to move | <b>Mouse</b> to look</p>
+  </head>
+  <body>
+    <canvas id="glCanvas"></canvas>
+    <div class="crosshair"></div>
+
+    <div class="overlay">
+      <div class="hud-top">
+        <div>
+          <h1
+            class="text-2xl font-bold tracking-tighter uppercase text-blue-400"
+          >
+            Fractal Voyager v2.0
+          </h1>
+          <p class="text-xs opacity-50">Infinite Raymarching Engine</p>
+        </div>
+        <div id="stats" class="text-right font-mono text-xs opacity-50">
+          POS: 0.00, 0.00, 0.00<br />
+          FPS: 60
+        </div>
+      </div>
+
+      <div id="instructions" onclick="requestLock()">
+        <h2 class="text-xl font-bold mb-4">Initialize Neural Link</h2>
+        <p class="mb-4 opacity-80 text-sm">
+          Explore the infinite architectural voids of the Mandelbox.
+        </p>
+        <div class="grid grid-cols-2 gap-4 text-xs">
+          <div class="text-right opacity-60">Movement</div>
+          <div class="text-left">
+            <span class="kbd">W</span> <span class="kbd">A</span>
+            <span class="kbd">S</span> <span class="kbd">D</span>
+          </div>
+          <div class="text-right opacity-60">Ascent / Descent</div>
+          <div class="text-left">
+            <span class="kbd">Space</span> / <span class="kbd">Shift</span>
+          </div>
+          <div class="text-right opacity-60">Look</div>
+          <div class="text-left">Mouse</div>
+        </div>
+        <button
+          class="mt-6 px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-full font-bold transition-all uppercase tracking-widest text-xs"
+        >
+          Begin Sequence
+        </button>
+      </div>
+
+      <div class="hud-bottom">
+        <p class="text-xs tracking-widest uppercase">
+          Procedural Fractal Simulation • GPU Accelerated
+        </p>
+      </div>
     </div>
-    <canvas id="canvas"></canvas>
 
-<script type="x-shader/x-fragment" id="fragmentShader">
-    precision highp float;
+    <script id="vs" type="x-shader/x-vertex">
+      attribute vec2 position;
+      void main() {
+          gl_Position = vec4(position, 0.0, 1.0);
+      }
+    </script>
 
-    uniform vec2 u_resolution;
-    uniform float u_time;
-    uniform vec3 u_pos;
-    uniform vec2 u_mouse;
+    <script id="fs" type="x-shader/x-fragment">
+      precision highp float;
 
-    // Fractal parameters
-    const int ITERATIONS = 12;
-    
-    // Distance Estimator for a "Menger Sponge" style fractal
-    float map(vec3 p) {
-        p = mod(p + 2.0, 4.0) - 2.0; // Infinite repetition
-        float d = length(max(abs(p) - 1.0, 0.0)); // Base cube
-        
-        float s = 1.0;
-        for(int i = 0; i < 4; i++) {
-            vec3 a = mod(p * s, 2.0) - 1.0;
-            s *= 3.0;
-            vec3 v = 1.0 - 3.0 * abs(a);
-            float g = max(v.x, max(v.y, v.z)) / s;
-            d = max(d, g);
-        }
-        return d;
-    }
+      uniform vec2 u_res;
+      uniform float u_time;
+      uniform vec3 u_pos;
+      uniform vec2 u_look; // yaw, pitch
 
-    void main() {
-        vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / u_resolution.y;
-        
-        // Camera setup
-        vec3 ro = u_pos; // Ray origin (player position)
-        vec3 rd = normalize(vec3(uv, 1.0)); // Ray direction
-        
-        // Simple rotation based on mouse
-        float pitch = u_mouse.y * 2.0;
-        float yaw = u_mouse.x * 2.0;
-        
-        // Apply rotations
-        mat3 rotY = mat3(cos(yaw), 0, sin(yaw), 0, 1, 0, -sin(yaw), 0, cos(yaw));
-        mat3 rotX = mat3(1, 0, 0, 0, cos(pitch), -sin(pitch), 0, sin(pitch), cos(pitch));
-        rd = rotY * rotX * rd;
+      const int MAX_STEPS = 90;
+      const float MIN_DIST = 0.001;
+      const float MAX_DIST = 40.0;
 
-        // Raymarching
-        float t = 0.0;
-        for(int i = 0; i < 64; i++) {
-            float d = map(ro + rd * t);
-            if(d < 0.001 || t > 20.0) break;
-            t += d;
-        }
+      // Mandelbox Distance Estimator
+      void sphereFold(inout vec3 z, inout float dz) {
+          float r2 = dot(z, z);
+          if (r2 < 0.5) {
+              float temp = 2.0;
+              z *= temp;
+              dz *= temp;
+          } else if (r2 < 1.0) {
+              float temp = 1.0 / r2;
+              z *= temp;
+              dz *= temp;
+          }
+      }
 
-        // Shading
-        vec3 col = vec3(0.0);
-        if(t < 20.0) {
-            float fog = 1.0 / (1.0 + t * t * 0.1);
-            col = vec3(0.2, 0.5, 0.8) * fog; // Blueish tint
-            col += (1.0 - (float(t) / 20.0)) * 0.5; // Depth lighting
-        }
+      void boxFold(inout vec3 z) {
+          z = clamp(z, -1.0, 1.0) * 2.0 - z;
+      }
 
-        gl_FragColor = vec4(col, 1.0);
-    }
-</script>
+      float map(vec3 p) {
+          // Infinite repetition
+          p = mod(p + 4.0, 8.0) - 4.0;
 
-<script>
-    const canvas = document.getElementById('canvas');
-    const gl = canvas.getContext('webgl');
+          vec3 z = p;
+          float dr = 1.0;
+          float scale = 2.5;
 
-    // State
-    let pos = { x: 0, y: 0, z: -5 };
-    let mouse = { x: 0, y: 0 };
-    let keys = {};
+          for (int i = 0; i < 8; i++) {
+              boxFold(z);
+              sphereFold(z, dr);
+              z = scale * z + p;
+              dr = dr * abs(scale) + 1.0;
+          }
+          return length(z) / abs(dr);
+      }
 
-    // Standard WebGL setup (Shaders, Buffers, Uniforms)
-    const vertSrc = `attribute vec2 position; void main() { gl_Position = vec4(position, 0.0, 1.0); }`;
-    const fragSrc = document.getElementById('fragmentShader').text;
+      vec3 getNormal(vec3 p) {
+          vec2 e = vec2(0.001, 0.0);
+          return normalize(vec3(
+              map(p + e.xyy) - map(p - e.xyy),
+              map(p + e.yxy) - map(p - e.yxy),
+              map(p + e.yyx) - map(p - e.yyx)
+          ));
+      }
 
-    function createShader(gl, type, src) {
+      float getAmbientOcclusion(vec3 p, vec3 n) {
+          float occ = 0.0;
+          float sca = 1.0;
+          for(int i=0; i<5; i++) {
+              float hr = 0.01 + 0.12*float(i)/4.0;
+              float d = map(p + n*hr);
+              occ += -(d-hr)*sca;
+              sca *= 0.95;
+          }
+          return clamp(1.0 - 3.0*occ, 0.0, 1.0);
+      }
+
+      void main() {
+          vec2 uv = (gl_FragCoord.xy - 0.5 * u_res.xy) / u_res.y;
+
+          // Rotation matrices
+          float cy = cos(u_look.x);
+          float sy = sin(u_look.x);
+          float cp = cos(u_look.y);
+          float sp = sin(u_look.y);
+
+          mat3 rotY = mat3(cy, 0, sy, 0, 1, 0, -sy, 0, cy);
+          mat3 rotX = mat3(1, 0, 0, 0, cp, -sp, 0, sp, cp);
+
+          vec3 ro = u_pos;
+          vec3 rd = rotY * rotX * normalize(vec3(uv, 1.2));
+
+          // Raymarch
+          float t = 0.0;
+          float d;
+          int steps = 0;
+          for(int i = 0; i < MAX_STEPS; i++) {
+              d = map(ro + rd * t);
+              if(d < MIN_DIST || t > MAX_DIST) break;
+              t += d;
+              steps = i;
+          }
+
+          vec3 col = vec3(0.0);
+
+          if(t < MAX_DIST) {
+              vec3 p = ro + rd * t;
+              vec3 n = getNormal(p);
+              vec3 sunDir = normalize(vec3(0.5, 0.8, -0.5));
+
+              // Lighting components
+              float diff = max(dot(n, sunDir), 0.0);
+              float ao = getAmbientOcclusion(p, n);
+              float fog = exp(-0.15 * t);
+
+              // Color based on step count and position
+              vec3 baseCol = 0.5 + 0.5 * cos(u_time * 0.1 + p.z * 0.1 + vec3(0, 2, 4));
+              baseCol *= (1.0 - float(steps)/float(MAX_STEPS)); // Visualizing complexity
+
+              col = baseCol * (diff + 0.2) * ao;
+              col = mix(vec3(0.02, 0.03, 0.05), col, fog); // Deep space fog
+          }
+
+          // Glow / Bloom simulation
+          col += vec3(0.1, 0.2, 0.4) * (float(steps) / float(MAX_STEPS)) * 0.5;
+
+          gl_FragColor = vec4(pow(col, vec3(0.4545)), 1.0); // Gamma correction
+      }
+    </script>
+
+    <script>
+      const canvas = document.getElementById("glCanvas");
+      const gl = canvas.getContext("webgl");
+      const statsEl = document.getElementById("stats");
+      const instructions = document.getElementById("instructions");
+
+      // State Management
+      let state = {
+        pos: { x: 0, y: 0.5, z: -2 },
+        vel: { x: 0, y: 0, z: 0 },
+        look: { yaw: 0, pitch: 0 },
+        keys: {},
+        lastTime: 0,
+        isLocked: false,
+      };
+
+      function createShader(gl, type, source) {
         const s = gl.createShader(type);
-        gl.shaderSource(s, src);
+        gl.shaderSource(s, source);
         gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+          console.error(gl.getShaderInfoLog(s));
+          gl.deleteShader(s);
+          return null;
+        }
         return s;
-    }
+      }
 
-    const program = gl.createProgram();
-    gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, vertSrc));
-    gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, fragSrc));
-    gl.linkProgram(program);
-    gl.useProgram(program);
+      const program = gl.createProgram();
+      gl.attachShader(
+        program,
+        createShader(gl, gl.VERTEX_SHADER, document.getElementById("vs").text),
+      );
+      gl.attachShader(
+        program,
+        createShader(
+          gl,
+          gl.FRAGMENT_SHADER,
+          document.getElementById("fs").text,
+        ),
+      );
+      gl.linkProgram(program);
+      gl.useProgram(program);
 
-    const buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+      const buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
+        gl.STATIC_DRAW,
+      );
 
-    const posAttrib = gl.getAttribLocation(program, "position");
-    gl.enableVertexAttribArray(posAttrib);
-    gl.vertexAttribPointer(posAttrib, 2, gl.FLOAT, false, 0, 0);
+      const posAttrib = gl.getAttribLocation(program, "position");
+      gl.enableVertexAttribArray(posAttrib);
+      gl.vertexAttribPointer(posAttrib, 2, gl.FLOAT, false, 0, 0);
 
-    const uRes = gl.getUniformLocation(program, "u_resolution");
-    const uPos = gl.getUniformLocation(program, "u_pos");
-    const uMouse = gl.getUniformLocation(program, "u_mouse");
+      const uRes = gl.getUniformLocation(program, "u_res");
+      const uTime = gl.getUniformLocation(program, "u_time");
+      const uPos = gl.getUniformLocation(program, "u_pos");
+      const uLook = gl.getUniformLocation(program, "u_look");
 
-    // Input Handling
-    window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-    window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-    window.addEventListener('mousemove', e => {
-        mouse.x = (e.clientX / window.innerWidth) - 0.5;
-        mouse.y = (e.clientY / window.innerHeight) - 0.5;
-    });
+      window.addEventListener("keydown", (e) => (state.keys[e.code] = true));
+      window.addEventListener("keyup", (e) => (state.keys[e.code] = false));
 
-    function render(time) {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        gl.viewport(0, 0, canvas.width, canvas.height);
+      function requestLock() {
+        canvas.requestPointerLock();
+      }
 
-        // Movement Logic
-        const speed = 0.05;
-        if(keys['w']) pos.z += speed;
-        if(keys['s']) pos.z -= speed;
-        if(keys['a']) pos.x -= speed;
-        if(keys['d']) pos.x += speed;
+      document.addEventListener("pointerlockchange", () => {
+        state.isLocked = document.pointerLockElement === canvas;
+        instructions.style.display = state.isLocked ? "none" : "block";
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        if (!state.isLocked) return;
+        const sensitivity = 0.002;
+        state.look.yaw -= e.movementX * sensitivity;
+        state.look.pitch -= e.movementY * sensitivity;
+        state.look.pitch = Math.max(
+          -Math.PI / 2,
+          Math.min(Math.PI / 2, state.look.pitch),
+        );
+      });
+
+      function update(dt) {
+        const accel = 25.0;
+        const friction = 0.85; // Increased friction for tighter control
+        const stopThreshold = 0.001; // Minimum speed before snapping to zero
+
+        let move = { x: 0, y: 0, z: 0 };
+        const forward = {
+          x: Math.sin(state.look.yaw),
+          z: Math.cos(state.look.yaw),
+        };
+        const right = {
+          x: Math.cos(state.look.yaw),
+          z: -Math.sin(state.look.yaw),
+        };
+
+        if (state.keys["KeyW"]) {
+          move.x += forward.x;
+          move.z += forward.z;
+        }
+        if (state.keys["KeyS"]) {
+          move.x -= forward.x;
+          move.z -= forward.z;
+        }
+        if (state.keys["KeyA"]) {
+          move.x -= right.x;
+          move.z -= right.z;
+        }
+        if (state.keys["KeyD"]) {
+          move.x += right.x;
+          move.z += right.z;
+        }
+        if (state.keys["Space"]) move.y += 1.0;
+        if (state.keys["ShiftLeft"]) move.y -= 1.0;
+
+        const mag = Math.sqrt(
+          move.x * move.x + move.y * move.y + move.z * move.z,
+        );
+        if (mag > 0) {
+          state.vel.x += (move.x / mag) * accel * dt;
+          state.vel.y += (move.y / mag) * accel * dt;
+          state.vel.z += (move.z / mag) * accel * dt;
+        }
+
+        // Apply friction
+        state.vel.x *= friction;
+        state.vel.y *= friction;
+        state.vel.z *= friction;
+
+        if (Math.abs(state.vel.x) < stopThreshold) state.vel.x = 0;
+        if (Math.abs(state.vel.y) < stopThreshold) state.vel.y = 0;
+        if (Math.abs(state.vel.z) < stopThreshold) state.vel.z = 0;
+
+        // Apply velocity to position
+        state.pos.x += state.vel.x * dt;
+        state.pos.y += state.vel.y * dt;
+        state.pos.z += state.vel.z * dt;
+
+        // Update UI with cleaner formatting
+        statsEl.innerHTML = `POS: ${state.pos.x.toFixed(2)}, ${state.pos.y.toFixed(2)}, ${state.pos.z.toFixed(2)}<br>FPS: ${Math.round(1 / dt)}`;
+      }
+
+      function render(time) {
+        const dt = Math.min((time - state.lastTime) / 1000, 0.1);
+        state.lastTime = time;
+
+        if (
+          canvas.width !== window.innerWidth ||
+          canvas.height !== window.innerHeight
+        ) {
+          canvas.width = window.innerWidth;
+          canvas.height = window.innerHeight;
+          gl.viewport(0, 0, canvas.width, canvas.height);
+        }
+
+        update(dt);
 
         gl.uniform2f(uRes, canvas.width, canvas.height);
-        gl.uniform3f(uPos, pos.x, pos.y, pos.z);
-        gl.uniform2f(uMouse, mouse.x, mouse.y);
+        gl.uniform1f(uTime, time * 0.001);
+        gl.uniform3f(uPos, state.pos.x, state.pos.y, state.pos.z);
+        gl.uniform2f(uLook, state.look.yaw, state.look.pitch);
 
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         requestAnimationFrame(render);
-    }
-    requestAnimationFrame(render);
-</script>
-</body>
+      }
+
+      // Initialize
+      requestAnimationFrame(render);
+    </script>
+  </body>
 </html>
