@@ -357,8 +357,8 @@
       });
 
       function update(dt) {
-        const accel = 25.0;
-        const friction = 0.85; // Increased friction for tighter control
+        const accel = 12.0; // Reduced from 25.0 for a more controlled walk speed
+        const friction = 0.82; // Increased friction (lower value) for quicker deceleration
         const stopThreshold = 0.001; // Minimum speed before snapping to zero
 
         let move = { x: 0, y: 0, z: 0 };
