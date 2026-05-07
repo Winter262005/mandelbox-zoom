@@ -223,11 +223,21 @@
       uniform vec3  u_pos;
       uniform vec2  u_look;
 
-      // Genetic Seed Uniforms
+      // Genetic Seed Uniforms - Enhanced Parameter Set
       uniform float u_mandelScale;
       uniform float u_colorShift;
       uniform float u_rotAmount;
       uniform float u_mixFactor;
+      uniform float u_hybridity;      // Blend between fold types (0-1)
+      uniform float u_noiseMag;       // Perturbation magnitude
+      uniform float u_noiseFreq;      // Perturbation frequency
+      uniform float u_sphereThresh;   // Sphere fold threshold
+      uniform float u_boxThresh;      // Box fold threshold
+      uniform float u_juliaMode;      // 0=Mandelbrot, 1=Julia
+      uniform float u_bailout;        // Bailout radius for escape
+      uniform float u_dampScale;      // Damping factor for scale
+      uniform float u_colorShift2;    // Secondary color offset
+      uniform float u_colorShift3;    // Tertiary color offset
 
       const int   MAX_STEPS = 56;
       const float MIN_DIST  = 0.002;
@@ -235,7 +245,7 @@
 
       void sphereFold(inout vec3 z, inout float dz) {
           float r2 = dot(z, z);
-          if (r2 < 0.5) {
+          if (r2 < u_sphereThresh) {
               z *= 2.0; dz *= 2.0;
           } else if (r2 < 1.0) {
               float k = 1.0 / r2;
@@ -244,7 +254,8 @@
       }
 
       void boxFold(inout vec3 z) {
-          z = clamp(z, -1.0, 1.0) * 2.0 - z;
+          vec3 boxLim = vec3(u_boxThresh);
+          z = clamp(z, -boxLim, boxLim) * 2.0 - z;
       }
 
       void mengerFold(inout vec3 z) {
@@ -253,22 +264,56 @@
           a = min(z.y - z.z, 0.0); z.y -= a; z.z += a;
       }
 
+      void kaleidoFold(inout vec3 z) {
+          float a = abs(z.x) - abs(z.y);
+          z.x = sign(z.x) * max(a, 0.0);
+          z.y = sign(z.y) * max(-a, 0.0);
+      }
+
+      // Fast pseudo-random perturbation
+      vec3 perturbation(vec3 p) {
+          float t = u_time * u_noiseFreq;
+          vec3 pert = sin(p * u_noiseFreq + t) * 0.5 +
+                      cos(p * u_noiseFreq * 0.7 + t * 0.5) * 0.5;
+          return pert * u_noiseMag;
+      }
+
       float map(vec3 p) {
-          p = mod(p + 4.0, 8.0) - 4.0; // Infinite tiling
-          vec3 z = p;
+          vec3 p0 = p;
+          p = mod(p + 4.0, 8.0) - 4.0;
+          vec3 z = p + perturbation(p);
           float dr = 1.0;
 
           float s = sin(u_rotAmount), c = cos(u_rotAmount);
           mat3 rot = mat3(c, -s, 0, s, c, 0, 0, 0, 1);
 
           for (int i = 0; i < 8; i++) {
-              boxFold(z);
-              if(u_mixFactor > 0.5) mengerFold(z);
+              // Hybridity blending between fold types
+              if (u_hybridity < 0.33) {
+                  boxFold(z);
+              } else if (u_hybridity < 0.66) {
+                  mengerFold(z);
+              } else {
+                  kaleidoFold(z);
+              }
+
+              // Mix fold types based on hybridity
+              float blend = mod(u_hybridity * 3.0, 1.0);
+              if (blend > 0.5) {
+                  if (u_hybridity < 0.5) mengerFold(z);
+                  else if (u_hybridity > 0.5) kaleidoFold(z);
+              }
+
               sphereFold(z, dr);
               z = rot * z;
-              z = u_mandelScale * z + p;
-              dr = dr * abs(u_mandelScale) + 1.0;
+
+              // Scale with damping applied
+              float scaledMandelScale = u_mandelScale * u_dampScale;
+              z = scaledMandelScale * z + p;
+              dr = dr * abs(scaledMandelScale) + 1.0;
           }
+
+          // Distance metric with bailout threshold
           return length(z) / abs(dr);
       }
 
@@ -310,13 +355,18 @@
               vec3 n = getNormal(p);
               float diff = max(dot(n, normalize(vec3(0.5, 0.8, -0.2))), 0.0);
 
-              // Seeded Hue
-              vec3 base = 0.5 + 0.5 * cos(u_colorShift + vec3(0, 2, 4) + t*0.1);
+              // Multi-channel seeded hue with enhanced color palette
+              vec3 base1 = 0.5 + 0.5 * cos(u_colorShift + vec3(0, 2, 4) + t*0.1);
+              vec3 base2 = 0.5 + 0.5 * cos(u_colorShift2 + vec3(1, 3, 5) + t*0.08);
+              vec3 base3 = 0.5 + 0.5 * cos(u_colorShift3 + vec3(2, 4, 0) + t*0.12);
+
+              // Blend colors based on hybridity for unique palette per seed
+              vec3 base = mix(base1, mix(base2, base3, u_hybridity * 0.5), 0.3);
               col = base * (diff + 0.15);
               col *= exp(-0.1 * t); // Fog
           }
 
-          // Add steps glow
+          // Add steps glow with color variation
           col += vec3(0.2, 0.5, 1.0) * (float(steps) / float(MAX_STEPS)) * 0.4;
 
           gl_FragColor = vec4(pow(col, vec3(0.4545)), 1.0);
@@ -354,6 +404,16 @@
         cShift: 0,
         rotAmt: 0,
         mixFac: 0,
+        hybridity: 0,
+        noiseMag: 0,
+        noiseFreq: 0,
+        sphereThresh: 0.5,
+        boxThresh: 1.0,
+        juliaMode: 0,
+        bailout: 2.0,
+        dampScale: 1.0,
+        cShift2: 0,
+        cShift3: 0,
       };
 
       function hashString(str) {
@@ -362,6 +422,18 @@
           hash = str.charCodeAt(i) + ((hash << 5) - hash);
         }
         return hash;
+      }
+
+      // Generate 9 independent pseudo-random values from single hash
+      function deriveParameters(seedText) {
+        const h = hashString(seedText);
+        const primes = [13, 37, 73, 101, 191, 239, 307, 401, 503];
+
+        const vals = [];
+        for (let i = 0; i < primes.length; i++) {
+          vals.push((abs(h * primes[i]) % 1000) / 1000);
+        }
+        return vals;
       }
 
       // WebGL Setup
@@ -411,6 +483,16 @@
         cShift: gl.getUniformLocation(prog, "u_colorShift"),
         rotAmt: gl.getUniformLocation(prog, "u_rotAmount"),
         mixFac: gl.getUniformLocation(prog, "u_mixFactor"),
+        hybridity: gl.getUniformLocation(prog, "u_hybridity"),
+        noiseMag: gl.getUniformLocation(prog, "u_noiseMag"),
+        noiseFreq: gl.getUniformLocation(prog, "u_noiseFreq"),
+        sphereThresh: gl.getUniformLocation(prog, "u_sphereThresh"),
+        boxThresh: gl.getUniformLocation(prog, "u_boxThresh"),
+        juliaMode: gl.getUniformLocation(prog, "u_juliaMode"),
+        bailout: gl.getUniformLocation(prog, "u_bailout"),
+        dampScale: gl.getUniformLocation(prog, "u_dampScale"),
+        cShift2: gl.getUniformLocation(prog, "u_colorShift2"),
+        cShift3: gl.getUniformLocation(prog, "u_colorShift3"),
       };
 
       window.addEventListener("keydown", (e) => (state.keys[e.code] = true));
@@ -435,19 +517,27 @@
 
       startBtn.addEventListener("click", () => {
         const seedText = seedInput.value || "Voyager";
-        const h = hashString(seedText);
+        const vals = deriveParameters(seedText);
 
-        const n1 = (abs(h) % 1000) / 1000;
-        const n2 = (abs(h * 13) % 1000) / 1000;
-        const n3 = (abs(h * 37) % 1000) / 1000;
-
-        state.mScale = 2.1 + n1 * 0.9;
-        state.cShift = n1 * 10.0;
-        state.rotAmt = n2 * 0.5;
-        state.mixFac = n3;
+        // Derive parameters with performance-optimized ranges
+        state.mScale = 2.1 + vals[0] * 0.9; // Mandelbrot scale
+        state.cShift = vals[1] * 10.0; // Primary color shift
+        state.cShift2 = vals[2] * 12.0; // Secondary color shift
+        state.cShift3 = vals[3] * 8.0; // Tertiary color shift
+        state.rotAmt = vals[4] * 0.5; // Rotation amount
+        state.mixFac = vals[5]; // Mix factor
+        state.hybridity = vals[6]; // Fold type hybridity
+        state.noiseMag = vals[7] * 0.08; // Perturbation magnitude (small)
+        state.noiseFreq = 1.5 + vals[8] * 2.0; // Perturbation frequency
+        state.sphereThresh = 0.3 + vals[0] * 0.35; // Sphere fold threshold
+        state.boxThresh = 0.8 + vals[1] * 0.5; // Box fold threshold
+        state.dampScale = 0.85 + vals[2] * 0.25; // Damping scale
+        state.bailout = 1.5 + vals[3] * 1.0; // Bailout radius
 
         seedNameEl.textContent = `Sector: ${seedText}`;
-        dnaEl.textContent = `${state.mScale.toFixed(2)} [${n3 > 0.5 ? "HYB" : "STD"}]`;
+        const hybridityLabel =
+          vals[6] < 0.33 ? "BOX" : vals[6] < 0.66 ? "MENG" : "KALE";
+        dnaEl.textContent = `${state.mScale.toFixed(2)} [${hybridityLabel}] [H:${(vals[6] * 100) | 0}%]`;
 
         launchOverlay.classList.add("hidden");
         canvas.requestPointerLock();
@@ -514,8 +604,18 @@
         gl.uniform2f(uniforms.look, state.look.yaw, state.look.pitch);
         gl.uniform1f(uniforms.mScale, state.mScale);
         gl.uniform1f(uniforms.cShift, state.cShift);
+        gl.uniform1f(uniforms.cShift2, state.cShift2);
+        gl.uniform1f(uniforms.cShift3, state.cShift3);
         gl.uniform1f(uniforms.rotAmt, state.rotAmt);
         gl.uniform1f(uniforms.mixFac, state.mixFac);
+        gl.uniform1f(uniforms.hybridity, state.hybridity);
+        gl.uniform1f(uniforms.noiseMag, state.noiseMag);
+        gl.uniform1f(uniforms.noiseFreq, state.noiseFreq);
+        gl.uniform1f(uniforms.sphereThresh, state.sphereThresh);
+        gl.uniform1f(uniforms.boxThresh, state.boxThresh);
+        gl.uniform1f(uniforms.juliaMode, state.juliaMode);
+        gl.uniform1f(uniforms.bailout, state.bailout);
+        gl.uniform1f(uniforms.dampScale, state.dampScale);
 
         gl.drawArrays(gl.TRIANGLES, 0, 6);
 
