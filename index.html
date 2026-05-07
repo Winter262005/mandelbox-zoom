@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Fractal Voyager – generate unique fractal spaces from names."
+      content="Fractal Genesis – generate unique fractal spaces from names."
     />
-    <title>Fractal Voyager – Seeded Raymarching</title>
+    <title>Fractal Genesis – Name-Seeded Raymarching</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=JetBrains+Mono:wght@400;700&display=swap"
@@ -23,18 +23,17 @@
       }
 
       :root {
-        --accent: #4af;
-        --accent2: #a4f;
-        --panel-bg: rgba(5, 8, 18, 0.85);
-        --panel-border: rgba(80, 160, 255, 0.25);
-        --glow: 0 0 18px rgba(68, 170, 255, 0.35);
+        --accent: #78a0c4;
+        --accent2: #b0b9c8;
+        --panel-bg: rgba(12, 16, 26, 0.92);
+        --panel-border: rgba(120, 160, 200, 0.18);
       }
 
       body {
         overflow: hidden;
-        background: #000;
+        background: #05060a;
         font-family: "Inter", sans-serif;
-        color: #fff;
+        color: #f5f7fb;
         user-select: none;
       }
 
@@ -65,17 +64,14 @@
         padding: 0.75rem 1rem;
         backdrop-filter: blur(12px);
         color: rgba(255, 255, 255, 0.8);
-        box-shadow: var(--glow);
       }
 
       .brand h1 {
         font-size: 1.2rem;
         font-weight: 700;
-        letter-spacing: 0.1em;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        background: linear-gradient(90deg, #4af, #a4f);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: #f5f7fb;
       }
 
       #launch {
@@ -84,16 +80,22 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: radial-gradient(
-          circle at center,
-          rgba(10, 20, 50, 0.9) 0%,
-          #000 100%
-        );
+        background: rgba(10, 16, 28, 0.96);
         backdrop-filter: blur(10px);
         z-index: 100;
         transition:
           opacity 0.5s ease-out,
           visibility 0.5s;
+      }
+
+      #warningOverlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(8, 12, 20, 0.98);
+        z-index: 200;
       }
 
       #launch.hidden {
@@ -104,12 +106,11 @@
       .card {
         background: var(--panel-bg);
         border: 1px solid var(--panel-border);
-        border-radius: 20px;
-        padding: 3rem;
-        max-width: 500px;
+        border-radius: 18px;
+        padding: 2.5rem;
+        max-width: 520px;
         width: 90%;
         text-align: center;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
       }
 
       .input-group {
@@ -137,19 +138,22 @@
       }
 
       .btn-launch {
-        padding: 1rem 3rem;
-        background: linear-gradient(135deg, #25f, #a4f);
-        border: none;
-        border-radius: 50px;
-        color: #fff;
+        padding: 1rem 2.6rem;
+        background: #1e293d;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        color: #f5f7fb;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.1em;
+        letter-spacing: 0.08em;
         cursor: pointer;
-        transition: transform 0.2s;
+        transition:
+          background 0.2s,
+          transform 0.2s;
       }
       .btn-launch:hover {
-        transform: scale(1.05);
+        background: #2e3a52;
+        transform: translateY(-1px);
       }
 
       .controls-guide {
@@ -172,40 +176,87 @@
         "
       >
         <div class="brand">
-          <h1>Fractal Voyager</h1>
+          <h1>Fractal Genesis</h1>
           <p id="s-seed-name" style="font-size: 0.7rem; opacity: 0.5">
-            Awaiting Signature
+            Enter a name to begin
           </p>
         </div>
         <div id="stats">
-          FPS: <span id="s-fps" style="color: #4f8">--</span><br />
-          DNA: <span id="s-dna" style="color: #4af">Standard</span>
+          Variant: <span id="s-dna" style="color: #a4b9d6">Standard</span>
         </div>
+      </div>
+    </div>
+
+    <div id="warningOverlay">
+      <div class="card" style="max-width: 480px; padding: 2rem">
+        <h2
+          style="
+            font-size: 1.35rem;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+          "
+        >
+          Content Warning
+        </h2>
+        <p
+          style="
+            opacity: 0.8;
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+            line-height: 1.6;
+            text-align: left;
+          "
+        >
+          This experience includes intense fractal patterns, flashing geometry,
+          and visual effects that may trigger photosensitive epilepsy,
+          trypophobia, or discomfort.
+        </p>
+        <p
+          style="
+            opacity: 0.75;
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+            text-align: left;
+          "
+        >
+          Proceed only if you are comfortable with this style of content.
+        </p>
+        <button class="btn-launch" id="warningBtn">I Understand</button>
       </div>
     </div>
 
     <div id="launch">
       <div class="card">
         <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem">
-          Initialize Neural Link
+          Fractal Genesis
         </h2>
-        <p style="opacity: 0.6; font-size: 0.9rem">
-          Your unique string generates a dedicated dimension.
+        <p
+          style="
+            opacity: 0.75;
+            font-size: 0.95rem;
+            margin-bottom: 1.6rem;
+            line-height: 1.5;
+          "
+        >
+          Generate a unique fractal environment from a custom name. Each entry
+          produces a distinct procedural variation.
         </p>
         <div class="input-group">
-          <label>Neural Signature</label>
+          <label>Name</label>
           <input
             type="text"
             id="seedInput"
-            placeholder="Ex: Voyager One"
+            placeholder="Enter a name"
             maxlength="24"
           />
         </div>
-        <button class="btn-launch" id="startBtn">Engage Drive</button>
+        <button class="btn-launch" id="startBtn">Generate</button>
         <div class="controls-guide">
-          [W,A,S,D] Move &nbsp;•&nbsp; [Q/E] Up/Down &nbsp;•&nbsp; [Mouse] Look
-          &nbsp;•&nbsp; [Shift] Boost<br />
-          Click screen to recapture mouse.
+          [W,A,S,D] Move &nbsp;•&nbsp; [Q/E] Up / Down &nbsp;•&nbsp; [Mouse]
+          Look &nbsp;•&nbsp; [Shift] Boost<br />
+          Click the canvas to recapture mouse.
         </div>
       </div>
     </div>
@@ -380,17 +431,17 @@
       const gl = canvas.getContext("webgl", { antialias: false, alpha: false });
       const seedInput = document.getElementById("seedInput");
       const startBtn = document.getElementById("startBtn");
+      const warningBtn = document.getElementById("warningBtn");
       const launchOverlay = document.getElementById("launch");
+      const warningOverlay = document.getElementById("warningOverlay");
       const seedNameEl = document.getElementById("s-seed-name");
       const dnaEl = document.getElementById("s-dna");
-      const fpsEl = document.getElementById("s-fps");
 
       const baseScale =
         window.innerWidth > 1600 ? 0.7 : window.innerWidth > 1200 ? 0.8 : 0.9;
       const renderScale =
         window.devicePixelRatio > 1 ? baseScale * 0.8 : baseScale;
       const { abs, cos, max, min, round, sin } = Math;
-      let lastFpsUpdate = 0;
 
       // Engine State
       const state = {
@@ -534,13 +585,17 @@
         state.dampScale = 0.85 + vals[2] * 0.25; // Damping scale
         state.bailout = 1.5 + vals[3] * 1.0; // Bailout radius
 
-        seedNameEl.textContent = `Sector: ${seedText}`;
+        seedNameEl.textContent = seedText;
         const hybridityLabel =
           vals[6] < 0.33 ? "BOX" : vals[6] < 0.66 ? "MENG" : "KALE";
         dnaEl.textContent = `${state.mScale.toFixed(2)} [${hybridityLabel}] [H:${(vals[6] * 100) | 0}%]`;
 
         launchOverlay.classList.add("hidden");
         canvas.requestPointerLock();
+      });
+
+      warningBtn.addEventListener("click", () => {
+        warningOverlay.style.display = "none";
       });
 
       function update(dt) {
@@ -618,11 +673,6 @@
         gl.uniform1f(uniforms.dampScale, state.dampScale);
 
         gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-        if (time - lastFpsUpdate > 500) {
-          fpsEl.textContent = dt > 0 ? round(1 / dt) : "--";
-          lastFpsUpdate = time;
-        }
       }
 
       requestAnimationFrame(render);
