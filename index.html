@@ -203,8 +203,8 @@
         </div>
         <button class="btn-launch" id="startBtn">Engage Drive</button>
         <div class="controls-guide">
-          [W,A,S,D] Move &nbsp;•&nbsp; [Mouse] Look &nbsp;•&nbsp; [Shift]
-          Boost<br />
+          [W,A,S,D] Move &nbsp;•&nbsp; [Q/E] Up/Down &nbsp;•&nbsp; [Mouse] Look
+          &nbsp;•&nbsp; [Shift] Boost<br />
           Click screen to recapture mouse.
         </div>
       </div>
@@ -216,7 +216,7 @@
     </script>
 
     <script id="fs" type="x-shader/x-fragment">
-      precision highp float;
+      precision mediump float;
 
       uniform vec2  u_res;
       uniform float u_time;
@@ -229,8 +229,8 @@
       uniform float u_rotAmount;
       uniform float u_mixFactor;
 
-      const int   MAX_STEPS = 80;
-      const float MIN_DIST  = 0.001;
+      const int   MAX_STEPS = 56;
+      const float MIN_DIST  = 0.002;
       const float MAX_DIST  = 30.0;
 
       void sphereFold(inout vec3 z, inout float dz) {
@@ -331,6 +331,16 @@
       const seedInput = document.getElementById("seedInput");
       const startBtn = document.getElementById("startBtn");
       const launchOverlay = document.getElementById("launch");
+      const seedNameEl = document.getElementById("s-seed-name");
+      const dnaEl = document.getElementById("s-dna");
+      const fpsEl = document.getElementById("s-fps");
+
+      const baseScale =
+        window.innerWidth > 1600 ? 0.7 : window.innerWidth > 1200 ? 0.8 : 0.9;
+      const renderScale =
+        window.devicePixelRatio > 1 ? baseScale * 0.8 : baseScale;
+      const { abs, cos, max, min, round, sin } = Math;
+      let lastFpsUpdate = 0;
 
       // Engine State
       const state = {
@@ -348,7 +358,7 @@
 
       function hashString(str) {
         let hash = 0;
-        for (let i = 0; i < str.length; i++) {
+        for (let i = 0, len = str.length; i < len; i++) {
           hash = str.charCodeAt(i) + ((hash << 5) - hash);
         }
         return hash;
@@ -407,11 +417,11 @@
       window.addEventListener("keyup", (e) => (state.keys[e.code] = false));
       window.addEventListener("mousemove", (e) => {
         if (!state.isLocked) return;
-        state.look.yaw += e.movementX * 0.002;
+        state.look.yaw -= e.movementX * 0.002;
         state.look.pitch -= e.movementY * 0.002;
-        state.look.pitch = Math.max(
+        state.look.pitch = max(
           -Math.PI / 2,
-          Math.min(Math.PI / 2, state.look.pitch),
+          min(Math.PI / 2, state.look.pitch),
         );
       });
 
@@ -427,19 +437,17 @@
         const seedText = seedInput.value || "Voyager";
         const h = hashString(seedText);
 
-        const n1 = (Math.abs(h) % 1000) / 1000;
-        const n2 = (Math.abs(h * 13) % 1000) / 1000;
-        const n3 = (Math.abs(h * 37) % 1000) / 1000;
+        const n1 = (abs(h) % 1000) / 1000;
+        const n2 = (abs(h * 13) % 1000) / 1000;
+        const n3 = (abs(h * 37) % 1000) / 1000;
 
         state.mScale = 2.1 + n1 * 0.9;
         state.cShift = n1 * 10.0;
         state.rotAmt = n2 * 0.5;
         state.mixFac = n3;
 
-        document.getElementById("s-seed-name").textContent =
-          `Sector: ${seedText}`;
-        document.getElementById("s-dna").textContent =
-          `${state.mScale.toFixed(2)} [${n3 > 0.5 ? "HYB" : "STD"}]`;
+        seedNameEl.textContent = `Sector: ${seedText}`;
+        dnaEl.textContent = `${state.mScale.toFixed(2)} [${n3 > 0.5 ? "HYB" : "STD"}]`;
 
         launchOverlay.classList.add("hidden");
         canvas.requestPointerLock();
@@ -452,36 +460,53 @@
         if (state.keys["KeyS"]) move.z -= 1;
         if (state.keys["KeyA"]) move.x -= 1;
         if (state.keys["KeyD"]) move.x += 1;
+        const vertical =
+          (state.keys["KeyQ"] ? 1 : 0) + (state.keys["KeyE"] ? -1 : 0);
 
-        const cy = Math.cos(state.look.yaw),
-          sy = Math.sin(state.look.yaw);
+        const moveMag = Math.hypot(move.x, move.z);
+        if (moveMag > 0) {
+          move.x /= moveMag;
+          move.z /= moveMag;
+        }
+
+        const cy = cos(state.look.yaw),
+          sy = sin(state.look.yaw);
         const dirX = move.x * cy + move.z * sy;
         const dirZ = move.z * cy - move.x * sy;
 
         state.vel.x += dirX * speed * dt;
         state.vel.z += dirZ * speed * dt;
+        state.vel.y += vertical * speed * 0.75 * dt;
+
         state.vel.x *= 0.9;
+        state.vel.y *= 0.9;
         state.vel.z *= 0.9;
 
         state.pos.x += state.vel.x * dt;
+        state.pos.y += state.vel.y * dt;
         state.pos.z += state.vel.z * dt;
+      }
+
+      function resizeCanvas() {
+        const width = Math.max(1, Math.floor(window.innerWidth * renderScale));
+        const height = Math.max(
+          1,
+          Math.floor(window.innerHeight * renderScale),
+        );
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+          gl.viewport(0, 0, width, height);
+        }
       }
 
       function render(time) {
         requestAnimationFrame(render);
-        const dt = Math.min((time - state.lastTime) / 1000, 0.1);
+        const dt = min((time - state.lastTime) / 1000, 0.1);
         state.lastTime = time;
 
         if (state.isLocked) update(dt);
-
-        if (
-          canvas.width !== window.innerWidth ||
-          canvas.height !== window.innerHeight
-        ) {
-          canvas.width = window.innerWidth;
-          canvas.height = window.innerHeight;
-          gl.viewport(0, 0, canvas.width, canvas.height);
-        }
+        resizeCanvas();
 
         gl.uniform2f(uniforms.res, canvas.width, canvas.height);
         gl.uniform1f(uniforms.time, time * 0.001);
@@ -494,8 +519,9 @@
 
         gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-        if (time % 500 < 20) {
-          document.getElementById("s-fps").textContent = Math.round(1 / dt);
+        if (time - lastFpsUpdate > 500) {
+          fpsEl.textContent = dt > 0 ? round(1 / dt) : "--";
+          lastFpsUpdate = time;
         }
       }
 
