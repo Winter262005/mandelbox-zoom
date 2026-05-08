@@ -9,8 +9,9 @@
     />
     <title>Fractal Genesis – Name-Seeded Raymarching</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap"
       rel="stylesheet"
     />
     <style>
@@ -32,7 +33,7 @@
       body {
         overflow: hidden;
         background: #05060a;
-        font-family: "Inter", sans-serif;
+        font-family: "Orbitron", sans-serif;
         color: #f5f7fb;
         user-select: none;
       }
@@ -56,11 +57,11 @@
       }
 
       #stats {
-        font-family: "JetBrains Mono", monospace;
+        font-family: "Orbitron", sans-serif;
         font-size: 0.75rem;
         background: var(--panel-bg);
         border: 1px solid var(--panel-border);
-        border-radius: 8px;
+        border-radius: 0;
         padding: 0.75rem 1rem;
         backdrop-filter: blur(12px);
         color: rgba(255, 255, 255, 0.8);
@@ -106,7 +107,7 @@
       .card {
         background: var(--panel-bg);
         border: 1px solid var(--panel-border);
-        border-radius: 18px;
+        border-radius: 0;
         padding: 2.5rem;
         max-width: 520px;
         width: 90%;
@@ -131,9 +132,9 @@
         border: 1px solid var(--panel-border);
         padding: 1rem;
         color: #fff;
-        font-family: "JetBrains Mono", monospace;
+        font-family: "Orbitron", sans-serif;
         font-size: 1.1rem;
-        border-radius: 8px;
+        border-radius: 0;
         outline: none;
       }
 
@@ -141,7 +142,7 @@
         padding: 1rem 2.6rem;
         background: #1e293d;
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 14px;
+        border-radius: 0;
         color: #f5f7fb;
         font-weight: 700;
         text-transform: uppercase;
@@ -254,9 +255,9 @@
         </div>
         <button class="btn-launch" id="startBtn">Generate</button>
         <div class="controls-guide">
-          [W,A,S,D] Move &nbsp;•&nbsp; [Q/E] Up / Down &nbsp;•&nbsp; [Mouse]
-          Look &nbsp;•&nbsp; [Shift] Boost<br />
-          Click the canvas to recapture mouse.
+          [W,A,S,D] Move &nbsp;•&nbsp; [Q/E] Up / Down &nbsp;•&nbsp; [Shift]
+          Boost<br />
+          [Mouse] Look &nbsp;•&nbsp; Fixed world-axis movement.
         </div>
       </div>
     </div>
@@ -600,36 +601,20 @@
 
       function update(dt) {
         const speed = state.keys["ShiftLeft"] ? 8.0 : 3.0;
-        const move = { x: 0, z: 0 };
-        if (state.keys["KeyW"]) move.z += 1;
-        if (state.keys["KeyS"]) move.z -= 1;
-        if (state.keys["KeyA"]) move.x -= 1;
-        if (state.keys["KeyD"]) move.x += 1;
-        const vertical =
-          (state.keys["KeyQ"] ? 1 : 0) + (state.keys["KeyE"] ? -1 : 0);
+        let dx = 0;
+        let dy = 0;
+        let dz = 0;
 
-        const moveMag = Math.hypot(move.x, move.z);
-        if (moveMag > 0) {
-          move.x /= moveMag;
-          move.z /= moveMag;
-        }
+        if (state.keys["KeyW"]) dz += speed * dt;
+        if (state.keys["KeyS"]) dz -= speed * dt;
+        if (state.keys["KeyA"]) dx -= speed * dt;
+        if (state.keys["KeyD"]) dx += speed * dt;
+        if (state.keys["KeyQ"]) dy += speed * 0.75 * dt;
+        if (state.keys["KeyE"]) dy -= speed * 0.75 * dt;
 
-        const cy = cos(state.look.yaw),
-          sy = sin(state.look.yaw);
-        const dirX = move.x * cy + move.z * sy;
-        const dirZ = move.z * cy - move.x * sy;
-
-        state.vel.x += dirX * speed * dt;
-        state.vel.z += dirZ * speed * dt;
-        state.vel.y += vertical * speed * 0.75 * dt;
-
-        state.vel.x *= 0.9;
-        state.vel.y *= 0.9;
-        state.vel.z *= 0.9;
-
-        state.pos.x += state.vel.x * dt;
-        state.pos.y += state.vel.y * dt;
-        state.pos.z += state.vel.z * dt;
+        state.pos.x += dx;
+        state.pos.y += dy;
+        state.pos.z += dz;
       }
 
       function resizeCanvas() {
@@ -650,7 +635,7 @@
         const dt = min((time - state.lastTime) / 1000, 0.1);
         state.lastTime = time;
 
-        if (state.isLocked) update(dt);
+        update(dt);
         resizeCanvas();
 
         gl.uniform2f(uniforms.res, canvas.width, canvas.height);
