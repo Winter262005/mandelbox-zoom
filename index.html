@@ -163,6 +163,95 @@
         line-height: 1.6;
         opacity: 0.5;
       }
+
+      /* Mobile D-pad styles */
+      #dpad {
+        position: fixed;
+        bottom: 2rem;
+        left: 2rem;
+        display: none;
+        z-index: 10;
+      }
+
+      .dpad-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-rows: 1fr 1fr 1fr;
+        gap: 0.5rem;
+        width: 120px;
+        height: 120px;
+      }
+
+      .dpad-btn {
+        background: var(--panel-bg);
+        border: 1px solid var(--panel-border);
+        border-radius: 0;
+        color: #f5f7fb;
+        font-family: "Orbitron", sans-serif;
+        font-size: 0.8rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .dpad-btn:hover {
+        background: var(--accent);
+      }
+
+      .dpad-btn:active {
+        background: var(--accent2);
+        transform: scale(0.95);
+      }
+
+      .dpad-center {
+        grid-column: 2;
+        grid-row: 2;
+      }
+
+      .dpad-up {
+        grid-column: 2;
+        grid-row: 1;
+      }
+
+      .dpad-down {
+        grid-column: 2;
+        grid-row: 3;
+      }
+
+      .dpad-left {
+        grid-column: 1;
+        grid-row: 2;
+      }
+
+      .dpad-right {
+        grid-column: 3;
+        grid-row: 2;
+      }
+
+      .dpad-up-left {
+        grid-column: 1;
+        grid-row: 1;
+      }
+
+      .dpad-up-right {
+        grid-column: 3;
+        grid-row: 1;
+      }
+
+      .dpad-down-left {
+        grid-column: 1;
+        grid-row: 3;
+      }
+
+      .dpad-down-right {
+        grid-column: 3;
+        grid-row: 3;
+      }
     </style>
   </head>
   <body>
@@ -185,6 +274,21 @@
         <div id="stats">
           Variant: <span id="s-dna" style="color: #a4b9d6">Standard</span>
         </div>
+      </div>
+    </div>
+
+    <!-- Mobile D-pad -->
+    <div id="dpad">
+      <div class="dpad-container">
+        <div class="dpad-btn dpad-up-left">↖</div>
+        <div class="dpad-btn dpad-up">↑</div>
+        <div class="dpad-btn dpad-up-right">↗</div>
+        <div class="dpad-btn dpad-left">←</div>
+        <div class="dpad-btn dpad-center">●</div>
+        <div class="dpad-btn dpad-right">→</div>
+        <div class="dpad-btn dpad-down-left">↙</div>
+        <div class="dpad-btn dpad-down">↓</div>
+        <div class="dpad-btn dpad-down-right">↘</div>
       </div>
     </div>
 
@@ -258,6 +362,10 @@
           [W,A,S,D] Move &nbsp;•&nbsp; [Q/E] Up / Down &nbsp;•&nbsp; [Shift]
           Boost<br />
           [Mouse] Look &nbsp;•&nbsp; Fixed world-axis movement.
+          <br />
+          <span id="mobile-controls" style="display: none">
+            [Touch] Look &nbsp;•&nbsp; [D-pad] Move
+          </span>
         </div>
       </div>
     </div>
@@ -466,7 +574,21 @@
         dampScale: 1.0,
         cShift2: 0,
         cShift3: 0,
+        // Mobile controls
+        isMobile: false,
+        touchMove: { x: 0, y: 0, z: 0 },
+        touchActive: false,
       };
+
+      // Mobile detection
+      function isMobileDevice() {
+        return (
+          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            navigator.userAgent,
+          ) ||
+          (window.innerWidth <= 768 && window.innerHeight <= 1024)
+        );
+      }
 
       function hashString(str) {
         let hash = 0;
@@ -567,6 +689,129 @@
         if (!state.isLocked) canvas.requestPointerLock();
       });
 
+      // Mobile detection and D-pad setup
+      state.isMobile = isMobileDevice();
+      const dpad = document.getElementById("dpad");
+      const mobileControls = document.getElementById("mobile-controls");
+      if (state.isMobile) {
+        dpad.style.display = "block";
+        mobileControls.style.display = "block";
+
+        // D-pad touch controls
+        const dpadButtons = {
+          up: document.querySelector(".dpad-up"),
+          down: document.querySelector(".dpad-down"),
+          left: document.querySelector(".dpad-left"),
+          right: document.querySelector(".dpad-right"),
+          upLeft: document.querySelector(".dpad-up-left"),
+          upRight: document.querySelector(".dpad-up-right"),
+          downLeft: document.querySelector(".dpad-down-left"),
+          downRight: document.querySelector(".dpad-down-right"),
+        };
+
+        // Touch event handlers for D-pad
+        Object.keys(dpadButtons).forEach((dir) => {
+          const btn = dpadButtons[dir];
+
+          btn.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            state.touchActive = true;
+            updateTouchDirection(dir, true);
+          });
+
+          btn.addEventListener("touchend", (e) => {
+            e.preventDefault();
+            state.touchActive = false;
+            resetTouchDirection();
+          });
+
+          btn.addEventListener("touchcancel", (e) => {
+            e.preventDefault();
+            state.touchActive = false;
+            resetTouchDirection();
+          });
+        });
+
+        // Touch look controls for mobile
+        let lastTouchX = 0;
+        let lastTouchY = 0;
+        let isDragging = false;
+
+        canvas.addEventListener("touchstart", (e) => {
+          if (e.touches.length === 1) {
+            lastTouchX = e.touches[0].clientX;
+            lastTouchY = e.touches[0].clientY;
+            isDragging = true;
+          }
+        });
+
+        canvas.addEventListener("touchmove", (e) => {
+          if (isDragging && e.touches.length === 1) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const deltaX = touch.clientX - lastTouchX;
+            const deltaY = touch.clientY - lastTouchY;
+
+            state.look.yaw -= deltaX * 0.005;
+            state.look.pitch -= deltaY * 0.005;
+            state.look.pitch = max(
+              -Math.PI / 2,
+              min(Math.PI / 2, state.look.pitch),
+            );
+
+            lastTouchX = touch.clientX;
+            lastTouchY = touch.clientY;
+          }
+        });
+
+        canvas.addEventListener("touchend", () => {
+          isDragging = false;
+        });
+      }
+
+      function updateTouchDirection(dir, active) {
+        const speed = 3.0;
+        resetTouchDirection();
+        if (!active) return;
+
+        switch (dir) {
+          case "up":
+            state.touchMove.z = speed;
+            break;
+          case "down":
+            state.touchMove.z = -speed;
+            break;
+          case "left":
+            state.touchMove.x = -speed;
+            break;
+          case "right":
+            state.touchMove.x = speed;
+            break;
+          case "upLeft":
+            state.touchMove.x = -speed * 0.707;
+            state.touchMove.z = speed * 0.707;
+            break;
+          case "upRight":
+            state.touchMove.x = speed * 0.707;
+            state.touchMove.z = speed * 0.707;
+            break;
+          case "downLeft":
+            state.touchMove.x = -speed * 0.707;
+            state.touchMove.z = -speed * 0.707;
+            break;
+          case "downRight":
+            state.touchMove.x = speed * 0.707;
+            state.touchMove.z = -speed * 0.707;
+            break;
+        }
+      }
+
+      function resetTouchDirection() {
+        state.touchMove.x = 0;
+        state.touchMove.y = 0;
+        state.touchMove.z = 0;
+      }
+
       startBtn.addEventListener("click", () => {
         const seedText = seedInput.value || "Voyager";
         const vals = deriveParameters(seedText);
@@ -592,7 +837,9 @@
         dnaEl.textContent = `${state.mScale.toFixed(2)} [${hybridityLabel}] [H:${(vals[6] * 100) | 0}%]`;
 
         launchOverlay.classList.add("hidden");
-        canvas.requestPointerLock();
+        if (!state.isMobile) {
+          canvas.requestPointerLock();
+        }
       });
 
       warningBtn.addEventListener("click", () => {
@@ -611,6 +858,13 @@
         if (state.keys["KeyD"]) dx += speed * dt;
         if (state.keys["KeyQ"]) dy += speed * 0.75 * dt;
         if (state.keys["KeyE"]) dy -= speed * 0.75 * dt;
+
+        // Add touch movement
+        if (state.touchActive) {
+          dx += state.touchMove.x * dt;
+          dy += state.touchMove.y * dt;
+          dz += state.touchMove.z * dt;
+        }
 
         state.pos.x += dx;
         state.pos.y += dy;
