@@ -176,10 +176,10 @@
       .dpad-container {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
-        grid-template-rows: 1fr 1fr 1fr;
+        grid-template-rows: 1fr 1fr 1fr 1fr;
         gap: 0.5rem;
         width: 120px;
-        height: 120px;
+        height: 160px;
       }
 
       .dpad-btn {
@@ -252,6 +252,16 @@
         grid-column: 3;
         grid-row: 3;
       }
+
+      .dpad-ascend {
+        grid-column: 1;
+        grid-row: 4;
+      }
+
+      .dpad-descend {
+        grid-column: 3;
+        grid-row: 4;
+      }
     </style>
   </head>
   <body>
@@ -289,6 +299,8 @@
         <div class="dpad-btn dpad-down-left">↙</div>
         <div class="dpad-btn dpad-down">↓</div>
         <div class="dpad-btn dpad-down-right">↘</div>
+        <div class="dpad-btn dpad-ascend">▲</div>
+        <div class="dpad-btn dpad-descend">▼</div>
       </div>
     </div>
 
@@ -364,7 +376,7 @@
           [Mouse] Look &nbsp;•&nbsp; Fixed world-axis movement.
           <br />
           <span id="mobile-controls" style="display: none">
-            [Touch] Look &nbsp;•&nbsp; [D-pad] Move
+            [Touch] Look &nbsp;•&nbsp; [D-pad] Move &nbsp;•&nbsp; [▲/▼] Up/Down
           </span>
         </div>
       </div>
@@ -707,6 +719,8 @@
           upRight: document.querySelector(".dpad-up-right"),
           downLeft: document.querySelector(".dpad-down-left"),
           downRight: document.querySelector(".dpad-down-right"),
+          ascend: document.querySelector(".dpad-ascend"),
+          descend: document.querySelector(".dpad-descend"),
         };
 
         // Touch event handlers for D-pad
@@ -802,6 +816,12 @@
           case "downRight":
             state.touchMove.x = speed * 0.707;
             state.touchMove.z = -speed * 0.707;
+            break;
+          case "ascend":
+            state.touchMove.y = speed * 0.75;
+            break;
+          case "descend":
+            state.touchMove.y = -speed * 0.75;
             break;
         }
       }
